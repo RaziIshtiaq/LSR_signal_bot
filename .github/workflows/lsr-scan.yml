@@ -1,0 +1,39 @@
+name: LSR Signal Scan
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run signal scan
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ONCE: "1"
+        run: python lsr_bot.py
+
+      - name: Save signal history (avoid duplicate alerts)
+        run: |
+          git config user.name "lsr-bot"
+          git config user.email "lsr-bot@users.noreply.github.com"
+          git add lsr_state.json || true
+          git diff --quiet && git diff --staged --quiet || git commit -m "update signal state [skip ci]"
+          git push || true
